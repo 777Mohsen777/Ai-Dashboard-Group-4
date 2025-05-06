@@ -9,13 +9,14 @@ st.set_page_config(page_title="Equipment Sensor Dashboard", layout="wide")
 st.title("📊 Equipment Sensor Monitoring Dashboard")
 
 uploaded_file = st.file_uploader("📂 Upload your Excel file", type=["xlsx"])
-
 if uploaded_file:
-    df = pd.read_excel(uploaded_file).round(3)
+    df = pd.read_excel(uploaded_file)
+    df = df.round(3)
     st.success("✅ File uploaded successfully!")
     st.subheader("📄 Data Preview")
     st.dataframe(df.head())
 
+    # Detect first failure values
     failure_temp = df[df['Temperature'] >= 120].head(1)
     failure_vib = df[df['Vibration'] >= 2].head(1)
     failure_pres = df[df['Pressure'] <= 230].head(1)
@@ -41,40 +42,50 @@ if uploaded_file:
     st.pyplot(fig)
 
     st.markdown("### 🧭 Live Performance Gauges")
+
     latest = df.iloc[-1]
-    temp_val, vib_val, pres_val = latest['Temperature'], latest['Vibration'], latest['Pressure']
+    temp_val = latest['Temperature']
+    vib_val = latest['Vibration']
+    pres_val = latest['Pressure']
 
     if pres_val <= 230:
         st.error("⚠️ WARNING: Hydraulic Pressure is below safe threshold!")
 
-    def create_gauge(title, value, min_val, max_val, ranges):
+    def create_gauge(title, value, min_val, max_val, steps):
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=value,
+            domain={'x': [0, 1], 'y': [0, 1]},
             title={'text': title},
             gauge={
                 'axis': {'range': [min_val, max_val]},
-                'bar': {'color': "darkgray"},
-                'steps': [{'range': r[0], 'color': r[1]} for r in ranges]
+                'bar': {'color': "black"},
+                'steps': steps
             }
         ))
-        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250)
+        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=200)
         return fig
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.plotly_chart(create_gauge("Engine Temperature (°C)", temp_val, 0, 150, [
-            ((0, 70), 'lightgreen'), ((70, 80), 'yellow'),
-            ((80, 100), 'orange'), ((100, 120), 'red')
-        ]), use_container_width=True)
+        steps_temp = [{'range': (0, 70), 'color': 'lightgreen'},
+                      {'range': (70, 80), 'color': 'yellow'},
+                      {'range': (80, 100), 'color': 'orange'},
+                      {'range': (100, 120), 'color': 'red'}]
+        st.plotly_chart(create_gauge("Engine Temperature (°C)", temp_val, 0, 150, steps_temp), use_container_width=True)
+
     with col2:
-        st.plotly_chart(create_gauge("Chassis Vibration (g)", vib_val, 0, 2.5, [
-            ((0, 0.4), 'lightgreen'), ((0.4, 1), 'yellow'),
-            ((1, 1.5), 'orange'), ((1.5, 2), 'red')
-        ]), use_container_width=True)
+        steps_vib = [{'range': (0, 0.4), 'color': 'lightgreen'},
+                     {'range': (0.4, 1), 'color': 'yellow'},
+                     {'range': (1, 1.5), 'color': 'orange'},
+                     {'range': (1.5, 2), 'color': 'red'}]
+        st.plotly_chart(create_gauge("Chassis Vibration (g)", vib_val, 0, 2.5, steps_vib), use_container_width=True)
+
     with col3:
-        st.plotly_chart(create_gauge("Hydraulic Pressure (psi)", pres_val, 0, 400, [
-            ((0, 230), 'white'), ((230, 260), 'red'),
-            ((260, 270), 'orange'), ((270, 290), 'yellow'),
-            ((290, 320), 'lightgreen'), ((320, 350), 'black')
-        ]), use_container_width=True)
+        steps_pres = [{'range': (0, 230), 'color': 'white'},
+                      {'range': (230, 260), 'color': 'red'},
+                      {'range': (260, 270), 'color': 'orange'},
+                      {'range': (270, 290), 'color': 'yellow'},
+                      {'range': (290, 320), 'color': 'lightgreen'},
+                      {'range': (320, 350), 'color': 'black'}]
+        st.plotly_chart(create_gauge("Hydraulic Pressure (psi)", pres_val, 0, 400, steps_pres), use_container_width=True)
